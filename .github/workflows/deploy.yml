@@ -26,7 +26,7 @@ jobs:
       - name: replace version
         run: ver=${{ steps.previoustag.outputs.tag }} && new_ver=${ver:1} && sed -i "s/SONIC_VERSION/${new_ver}/g" pom.xml
       - name: login docker hub
-        run: echo "${{ secrets.ACCESS_TOKEN }}" | docker login -u zhouyixun --password-stdin
+        run: echo "${{ secrets.ACCESS_TOKEN }}" | docker login -u iceblacktea --password-stdin
       - run: rm -rf plugins/sonic-android-apk.apk
       - name: saa-download
         uses: robinraju/release-downloader@v1.4
@@ -41,28 +41,44 @@ jobs:
         with:
           repository: SonicCloudOrg/sonic-android-supply
           latest: true
-          fileName: "*_linux_x86_64.tar.gz"
+          fileName: "*_linux_arm64.tar.gz"
       - name: sas
-        run: tar zxvf *_linux_x86_64.tar.gz && rm *_linux_x86_64.tar.gz && mv sas plugins/sonic-android-supply
+        run: tar zxvf *_linux_arm64.tar.gz && rm *_linux_arm64.tar.gz && mv sas plugins/sonic-android-supply
       - name: sgm-download
         uses: robinraju/release-downloader@v1.4
         with:
           repository: SonicCloudOrg/sonic-go-mitmproxy
           latest: true
-          fileName: "*_linux_x86_64.tar.gz"
+          fileName: "*_linux_arm64.tar.gz"
       - name: sgm
-        run: tar zxvf *_linux_x86_64.tar.gz && rm *_linux_x86_64.tar.gz && mv sonic-go-mitmproxy plugins/sonic-go-mitmproxy
+        run: tar zxvf *_linux_arm64.tar.gz && rm *_linux_arm64.tar.gz && mv sonic-go-mitmproxy plugins/sonic-go-mitmproxy
       - name: sib-download
         uses: robinraju/release-downloader@v1.4
         with:
           repository: SonicCloudOrg/sonic-ios-bridge
           latest: true
-          fileName: "*_linux_x86_64.tar.gz"
+          fileName: "*_linux_arm64.tar.gz"
       - name: sib
-        run: tar zxvf *_linux_x86_64.tar.gz && rm *_linux_x86_64.tar.gz && mv sib plugins/sonic-ios-bridge
+        run: tar zxvf *_linux_arm64.tar.gz && rm *_linux_arm64.tar.gz && mv sib plugins/sonic-ios-bridge
       - name: deploy
-        run: mvn package -Dplatform=linux-x86_64 -Dmaven.test.skip=true
+        run: mvn package -Dplatform=linux-arm64 -Dmaven.test.skip=true
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+      - name: Set up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v1
+      - name: Available platforms
+        run: echo ${{ steps.buildx.outputs.platforms }}
       - name: build image
-        run: docker build -t sonicorg/sonic-agent-linux:${{ steps.previoustag.outputs.tag }} -f src/main/docker/Dockerfile .
+        run: |
+          docker buildx build --platform linux/arm64 \
+            -o "type=image,push=false" \
+            -t iceblacktea/sonic-agent-linux-arm64:${{ steps.previoustag.outputs.tag }} \
+            -f src/main/docker/Dockerfile .
       - name: push
-        run: docker push sonicorg/sonic-agent-linux:${{ steps.previoustag.outputs.tag }}
+        run: |
+          docker buildx build --platform linux/arm64 \
+            --push \
+            -t iceblacktea/sonic-agent-linux-arm64:${{ steps.previoustag.outputs.tag }} \
+            -f src/main/docker/Dockerfile .
